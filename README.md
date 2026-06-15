@@ -16,6 +16,10 @@ hosting bill — just the host and the chain.
 > using an "advanced" host capability (real-time pub/sub) end-to-end. React 19 +
 > Vite + TypeScript, wired to the Polkadot Host API.
 
+**Live deployment:** [**live-emoji-wall.dot.li**](https://live-emoji-wall.dot.li)
+(or `live-emoji-wall.dot` inside a Polkadot host). Deployed to Bulletin Chain via
+`playground deploy` and published to the Playground registry — no server anywhere.
+
 Open it inside a Polkadot host (Mobile, Desktop, or Web) so the Host API can hand
 the app its product account and a `StatementStoreAllowance`. In a plain browser
 tab the UI renders but the wall stays in a "No host" state — there's no host to

@@ -253,6 +253,32 @@ Per `DEPLOYMENT.md`, give it a few minutes and/or hard-refresh (Cmd/Ctrl+Shift+R
 and open inside a real Polkadot host (Mobile/Desktop/Web) for the full
 Host-API-backed experience (product account + the live Statement Store wall).
 
+ℹ️ **Content lives on Bulletin, not public IPFS (diagnostic note).** Tried
+fetching the deployed App/IPFS CIDs from public IPFS gateways (`dweb.link`,
+`ipfs.io`) to sanity-check availability — both fail (301-to-subdomain / timeout),
+because the build is stored on **Polkadot Bulletin Chain**, which is
+IPFS-*addressed* but not announced to the public IPFS DHT. So only the `.dot.li`
+gateway or a Polkadot host can retrieve it; a "can't be reached" on `.dot.li`
+shortly after deploy is light-client/Bulletin propagation lag, not missing
+content. _(Gateway go-live re-check appended below.)_
+
+**Gateway re-check (~25 min post-deploy) — inconclusive from a headless browser.**
+Reloaded `https://live-emoji-wall.dot.li` several times with long (40-45s) waits;
+it kept showing "This app can't be reached." **Concluded this is an environment
+limitation, not a deploy failure:** the `.dot.li` resolver runs an **in-browser
+light client (smoldot)** that needs WebRTC/relay networking to sync, which the
+headless Chromium used here can't reliably establish — so it falls back to "can't
+be reached" no matter what. (The "Verified/Trusted" text on the page is a *hover
+tooltip* explaining the two load modes, not a live status badge — so a headless
+snapshot can't confirm or deny resolution.) **Authoritative verification must be
+done by a human:** open the URL in a normal desktop browser (leave it ~30-60s for
+the light client to sync; hard-refresh), and/or open `live-emoji-wall.dot` inside
+Polkadot Desktop/Mobile — which is also the only place the app *fully* works
+(Host API → product account + the live Statement Store wall). The deploy itself
+is confirmed complete on-chain (CLI `✔ Deploy complete`, contenthash linked to
+App CID, published to registry); only the visual web render is unverified from
+here.
+
 ## TL;DR — does modding + deploying work?
 **Yes.** The template clones, sets up, and accepts a non-trivial mod (swapping the
 sign demo for a Statement Store pub/sub emoji wall) cleanly; it builds and renders;
