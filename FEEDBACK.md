@@ -5,6 +5,61 @@ Running log of the "can we actually mod and deploy this?" experiment.
 (real-time P2P pub/sub) — the most "advanced/multiplayer" of the three ideas.
 
 Environment: macOS (darwin 25.5), Node v25.1.0, npm 11.6.2, git 2.44.0.
+CLI versions exercised: `playground` **v0.33.1** → upgraded to **v0.39.0** mid-run.
+
+---
+
+## ⛳ Bugs to declare (severity-ranked) — for Parity
+
+**Modding itself surfaced no CLI bugs** — modding is pure npm + code (no
+`playground` CLI involved); its only snag was an SDK *docs* drift (M5 below).
+**All CLI issues were on the deploy side.**
+
+### 🔴 CRITICAL — 1
+- **C1 — `playground deploy` `setContenthash` ("Link content") watcher is broken in
+  v0.33.1.** The step's transaction watcher reports `transaction watcher silent for
+  90s after (none)` (no tx hash to follow) and aborts, **leaving a
+  registered-but-unreachable `.dot` domain** (DotNS name committed, but no
+  contenthash → gateway shows "This app can't be reached"). **Reproduced twice**,
+  and confirmed in a browser. **Fixed by upgrading to v0.39.0** (same deploy
+  succeeded). → **Action: bump the install script / docs to ship ≥ v0.39.0.**
+
+### 🟠 MAJOR — process/UX, mostly silent failures
+- **A1 — Phone session expires silently after ~2-3 days, and only the *deploy*
+  discovers it** — at signing step 1, **after** the build was already uploaded to
+  Bulletin. `init`'s pre-check even reports `✓ logged in / allowances granted /
+  funded`, giving false confidence. No proactive "your session is stale" warning.
+- **A2 — `playground login -y` produces a session that looks logged-in but cannot
+  deploy.** `-y` skips initiating the **Bulletin storage-allowance** grant, so the
+  new session key is never authorized on-chain; deploy then dies with
+  `Could not resolve the Bulletin storage key for this session`. No warning until
+  deploy time.
+- **A3 — CLI requires a real TTY (Ink raw-mode); no headless/CI path.** Any
+  interactive step crashes with `Raw mode is not supported on the current
+  process.stdin` outside a real terminal. No non-interactive/token/QR-less mode for
+  automation — had to wrap it in a `script` PTY to drive it.
+
+### 🟡 MODERATE — papercuts
+- **M1 — `init` ↔ `login` command churn.** v0.33.1 pairs via `playground init`;
+  v0.39.0 renamed it to `playground login`. `DEPLOYMENT.md` and `CLAUDE.md`
+  disagree with at least one shipped CLI. Following written instructions breaks.
+- **M2 — `playground init` hard-fails on a benign username collision.** Re-pairing
+  threw `Couldn't save your username: …Revive.ContractReverted` (username already
+  owned by the same account) and exited as failure, despite pairing having
+  succeeded. Workaround: `init -y` (but see A2 — `-y` has its own trap).
+- **M3 — CLI upgrade invalidates the existing paired session** (forces a full
+  re-pair, which then tripped M2 → A2).
+- **M4 — ~90s per-approval window with no visible countdown;** easy to miss, and a
+  miss aborts the whole run.
+- **M5 — (mod-side, not CLI) statement-store skill docs are ahead of the shipped
+  `0.4.7` package:** documents `StatementStoreConfig.pollIntervalMs`/`.endpoint`
+  and a `client.query()` method that don't exist. Caught at `tsc` (loud, not
+  silent). Trust `dist/index.d.ts` over the skill reference.
+
+> Not bugs, but worth knowing: deploy needs `--no-contracts` for a frontend-only
+> app (else it runs a Rust/CDM contract pre-step); `.dot.li` content lives on
+> Bulletin (not public IPFS), so post-deploy gateway resolution lags a few minutes
+> and only renders in a real browser/host, not `curl` or headless Chromium.
 
 ---
 
