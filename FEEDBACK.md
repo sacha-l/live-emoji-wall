@@ -24,40 +24,26 @@ CLI versions exercised: `playground` **v0.33.1** → upgraded to **v0.39.0** mid
 **Modding surfaced no CLI bugs at all** — modding is pure npm + code.
 
 ### ✅ Declarable on the current CLI (v0.39.0)
-- **D1 — (mod-side, not CLI) statement-store skill docs are ahead of the shipped
-  `@parity/product-sdk-statement-store@0.4.7`.** They document
-  `StatementStoreConfig.pollIntervalMs`/`.endpoint` and a `client.query()` method
-  that don't exist in 0.4.7. Caught at `tsc` (loud, not silent). **Severity:**
-  🟡 Moderate. **Workaround:** trust `dist/index.d.ts`; use only
-  `connect`/`publish`/`subscribe`/`isConnected`/`getPublicKeyHex`/`destroy`.
-- **D2 — A freshly-paired session can't deploy until the on-chain Bulletin storage
-  allowance is approved.** If it isn't, deploy fails with `Could not resolve the
-  Bulletin storage key for this session … not authorized on-chain yet`. The error
-  is clear and actionable (more a setup step than a bug), but the failure surfaces
-  only at deploy time. **Severity:** 🟢 Low. **Workaround:** complete
-  `playground login` (no `-y`) and approve the Bulletin allowance prompt.
-- **D3 — CLI is interactive-only (Ink); needs a real TTY, no headless/CI path.**
-  Drives fine in a terminal; to automate it we had to allocate a PTY.
-  **Severity:** 🟢 Low / by-design. **Workaround:** run in a real terminal, or wrap
-  in `script`/a PTY.
-- **D4 — Upgrading the CLI invalidates the existing paired session** (`Mobile
-  signing needs a logged-in session`), forcing a re-pair. **Severity:** 🟢 Low /
-  migration artifact. **Workaround:** `playground login` after upgrading.
+
+| Error/Issue/Bug | Severity | Version | Status | Workaround |
+|---|---|---|---|---|
+| **statement-store skill docs ahead of shipped package** (mod-side, not CLI) — docs list `StatementStoreConfig.pollIntervalMs`/`.endpoint` and `client.query()` that don't exist in 0.4.7; caught at `tsc` (loud). | 🟡 Moderate | `@parity/product-sdk-statement-store` **0.4.7** | Open (current) | Trust `dist/index.d.ts`; use only `connect`/`publish`/`subscribe`/`isConnected`/`getPublicKeyHex`/`destroy` |
+| **Fresh session can't deploy until on-chain Bulletin storage allowance is approved** — else `Could not resolve the Bulletin storage key for this session … not authorized on-chain yet`; clear error, but surfaces only at deploy time. | 🟢 Low | CLI **v0.39.0** | Open / ~by-design | Complete `playground login` (no `-y`) and approve the Bulletin allowance prompt |
+| **CLI is interactive-only (Ink); needs a real TTY** — no headless/CI path. | 🟢 Low | CLI **v0.39.0** | Open / by-design | Run in a real terminal, or wrap in a PTY (`script`) |
+| **Upgrading the CLI invalidates the paired session** (`Mobile signing needs a logged-in session`) — forces a re-pair. | 🟢 Low | CLI **v0.39.0** (on upgrade) | Migration artifact | Re-pair with `playground login` after upgrading |
+| **Setup leaves an outdated CLI; no "upgrade-first" gate** — CLI nags `Update available` but still runs a broken deploy. *(Root-cause finding of this whole experiment.)* | 🟠 Major (process) | install path / v0.33.1 | Open | `playground update` **before** deploying |
 
 ### ❌ NOT bugs against the current version (v0.33.1 only — gone after upgrading)
-Kept here for honesty; **do not report these to Parity** as current issues:
-- **`setContenthash` "Link content" watcher abort** (`transaction watcher silent
-  for 90s after (none)` → registered-but-unreachable `.dot` domain). Reproduced
-  **2× on v0.33.1**, browser-confirmed — but **did not recur on v0.39.0** (the same
-  step succeeded). v0.33.1-only.
-- **`init` vs `login` command naming mismatch** — v0.39.0 uses `playground login`,
-  which matches `DEPLOYMENT.md`; the mismatch was the outdated v0.33.1 (`init`).
-- **`playground init` hard-fails on a benign username `Revive.ContractReverted`** —
-  observed on v0.33.1 `init`; not seen on v0.39.0 `login`.
-- **~90s approval-window aborts** — only hit inside v0.33.1's broken setContenthash
-  retry loop; v0.39.0 approvals went through.
-- **Silent ~2-3 day session expiry discovered only mid-deploy (after upload)** —
-  warned by / observed on v0.33.1; not retested on v0.39.0, so not declared.
+
+Kept for honesty; **do not report these to Parity** as current issues.
+
+| Error/Issue/Bug (v0.33.1) | Severity (then) | Version | Status | Note |
+|---|---|---|---|---|
+| **`setContenthash` "Link content" watcher abort** (`transaction watcher silent for 90s after (none)` → registered-but-unreachable `.dot` domain). | 🔴 Critical (then) | v0.33.1 | **Fixed in v0.39.0** | Reproduced 2× on v0.33.1, browser-confirmed; did **not** recur on v0.39.0 |
+| **`init` vs `login` command-name mismatch** | 🟡 Moderate (then) | v0.33.1 | Resolved | v0.39.0 uses `login`, matching `DEPLOYMENT.md` |
+| **`init` hard-fails on benign username `Revive.ContractReverted`** | 🟡 Moderate (then) | v0.33.1 (`init`) | Not seen on v0.39.0 | Pairing had already succeeded; exit was misleading |
+| **~90s approval-window aborts** | 🟡 Moderate (then) | v0.33.1 | Not seen on v0.39.0 | Only inside the broken setContenthash retry loop |
+| **Silent ~2-3 day session expiry discovered only mid-deploy (after upload)** | 🟠 Major (then) | v0.33.1 | Not retested on v0.39.0 | Warned by/observed on v0.33.1; not declared for current |
 
 > Not bugs, just good to know (all versions): deploy needs `--no-contracts` for a
 > frontend-only app (else it runs a Rust/CDM contract pre-step); `.dot.li` content
