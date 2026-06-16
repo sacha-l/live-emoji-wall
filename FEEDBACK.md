@@ -9,57 +9,60 @@ CLI versions exercised: `playground` **v0.33.1** → upgraded to **v0.39.0** mid
 
 ---
 
-## ⛳ Bugs to declare (severity-ranked) — for Parity
+## ⛳ Bugs to declare — corrected to the CURRENT CLI (v0.39.0)
 
-**Modding itself surfaced no CLI bugs** — modding is pure npm + code (no
-`playground` CLI involved); its only snag was an SDK *docs* drift (M5 below).
-**All CLI issues were on the deploy side.**
+> ⚠️ **Root-cause correction (read first).** The machine had an **outdated
+> `playground` v0.33.1** installed, and we **deployed before upgrading — our
+> mistake.** Almost every deploy failure in the timeline below was a **v0.33.1 bug
+> that does not reproduce on the current v0.39.0**: after `playground update`
+> (→ v0.39.0) + a fresh pairing, the deploy succeeded. **Do NOT file the v0.33.1
+> failures against current Playground** — they're kept in the timeline only as
+> history. The one real process lesson: **`playground update` before deploying**
+> (the CLI even nagged `Update available: v0.33.1 → v0.39.0` yet still let the
+> outdated, broken deploy proceed).
 
-### 🔴 CRITICAL — 1
-- **C1 — `playground deploy` `setContenthash` ("Link content") watcher is broken in
-  v0.33.1.** The step's transaction watcher reports `transaction watcher silent for
-  90s after (none)` (no tx hash to follow) and aborts, **leaving a
-  registered-but-unreachable `.dot` domain** (DotNS name committed, but no
-  contenthash → gateway shows "This app can't be reached"). **Reproduced twice**,
-  and confirmed in a browser. **Fixed by upgrading to v0.39.0** (same deploy
-  succeeded). → **Action: bump the install script / docs to ship ≥ v0.39.0.**
+**Modding surfaced no CLI bugs at all** — modding is pure npm + code.
 
-### 🟠 MAJOR — process/UX, mostly silent failures
-- **A1 — Phone session expires silently after ~2-3 days, and only the *deploy*
-  discovers it** — at signing step 1, **after** the build was already uploaded to
-  Bulletin. `init`'s pre-check even reports `✓ logged in / allowances granted /
-  funded`, giving false confidence. No proactive "your session is stale" warning.
-- **A2 — `playground login -y` produces a session that looks logged-in but cannot
-  deploy.** `-y` skips initiating the **Bulletin storage-allowance** grant, so the
-  new session key is never authorized on-chain; deploy then dies with
-  `Could not resolve the Bulletin storage key for this session`. No warning until
-  deploy time.
-- **A3 — CLI requires a real TTY (Ink raw-mode); no headless/CI path.** Any
-  interactive step crashes with `Raw mode is not supported on the current
-  process.stdin` outside a real terminal. No non-interactive/token/QR-less mode for
-  automation — had to wrap it in a `script` PTY to drive it.
+### ✅ Declarable on the current CLI (v0.39.0)
+- **D1 — (mod-side, not CLI) statement-store skill docs are ahead of the shipped
+  `@parity/product-sdk-statement-store@0.4.7`.** They document
+  `StatementStoreConfig.pollIntervalMs`/`.endpoint` and a `client.query()` method
+  that don't exist in 0.4.7. Caught at `tsc` (loud, not silent). **Severity:**
+  🟡 Moderate. **Workaround:** trust `dist/index.d.ts`; use only
+  `connect`/`publish`/`subscribe`/`isConnected`/`getPublicKeyHex`/`destroy`.
+- **D2 — A freshly-paired session can't deploy until the on-chain Bulletin storage
+  allowance is approved.** If it isn't, deploy fails with `Could not resolve the
+  Bulletin storage key for this session … not authorized on-chain yet`. The error
+  is clear and actionable (more a setup step than a bug), but the failure surfaces
+  only at deploy time. **Severity:** 🟢 Low. **Workaround:** complete
+  `playground login` (no `-y`) and approve the Bulletin allowance prompt.
+- **D3 — CLI is interactive-only (Ink); needs a real TTY, no headless/CI path.**
+  Drives fine in a terminal; to automate it we had to allocate a PTY.
+  **Severity:** 🟢 Low / by-design. **Workaround:** run in a real terminal, or wrap
+  in `script`/a PTY.
+- **D4 — Upgrading the CLI invalidates the existing paired session** (`Mobile
+  signing needs a logged-in session`), forcing a re-pair. **Severity:** 🟢 Low /
+  migration artifact. **Workaround:** `playground login` after upgrading.
 
-### 🟡 MODERATE — papercuts
-- **M1 — `init` ↔ `login` command churn.** v0.33.1 pairs via `playground init`;
-  v0.39.0 renamed it to `playground login`. `DEPLOYMENT.md` and `CLAUDE.md`
-  disagree with at least one shipped CLI. Following written instructions breaks.
-- **M2 — `playground init` hard-fails on a benign username collision.** Re-pairing
-  threw `Couldn't save your username: …Revive.ContractReverted` (username already
-  owned by the same account) and exited as failure, despite pairing having
-  succeeded. Workaround: `init -y` (but see A2 — `-y` has its own trap).
-- **M3 — CLI upgrade invalidates the existing paired session** (forces a full
-  re-pair, which then tripped M2 → A2).
-- **M4 — ~90s per-approval window with no visible countdown;** easy to miss, and a
-  miss aborts the whole run.
-- **M5 — (mod-side, not CLI) statement-store skill docs are ahead of the shipped
-  `0.4.7` package:** documents `StatementStoreConfig.pollIntervalMs`/`.endpoint`
-  and a `client.query()` method that don't exist. Caught at `tsc` (loud, not
-  silent). Trust `dist/index.d.ts` over the skill reference.
+### ❌ NOT bugs against the current version (v0.33.1 only — gone after upgrading)
+Kept here for honesty; **do not report these to Parity** as current issues:
+- **`setContenthash` "Link content" watcher abort** (`transaction watcher silent
+  for 90s after (none)` → registered-but-unreachable `.dot` domain). Reproduced
+  **2× on v0.33.1**, browser-confirmed — but **did not recur on v0.39.0** (the same
+  step succeeded). v0.33.1-only.
+- **`init` vs `login` command naming mismatch** — v0.39.0 uses `playground login`,
+  which matches `DEPLOYMENT.md`; the mismatch was the outdated v0.33.1 (`init`).
+- **`playground init` hard-fails on a benign username `Revive.ContractReverted`** —
+  observed on v0.33.1 `init`; not seen on v0.39.0 `login`.
+- **~90s approval-window aborts** — only hit inside v0.33.1's broken setContenthash
+  retry loop; v0.39.0 approvals went through.
+- **Silent ~2-3 day session expiry discovered only mid-deploy (after upload)** —
+  warned by / observed on v0.33.1; not retested on v0.39.0, so not declared.
 
-> Not bugs, but worth knowing: deploy needs `--no-contracts` for a frontend-only
-> app (else it runs a Rust/CDM contract pre-step); `.dot.li` content lives on
-> Bulletin (not public IPFS), so post-deploy gateway resolution lags a few minutes
-> and only renders in a real browser/host, not `curl` or headless Chromium.
+> Not bugs, just good to know (all versions): deploy needs `--no-contracts` for a
+> frontend-only app (else it runs a Rust/CDM contract pre-step); `.dot.li` content
+> lives on Bulletin (not public IPFS), so post-deploy gateway resolution lags a few
+> minutes and only renders in a real browser/host, not `curl` or headless Chromium.
 
 ---
 
@@ -338,11 +341,19 @@ here.
 **Yes.** The template clones, sets up, and accepts a non-trivial mod (swapping the
 sign demo for a Statement Store pub/sub emoji wall) cleanly; it builds and renders;
 and `playground deploy` publishes it to a real `.dot` domain + the Playground
-registry. The friction was **all in tooling, not the template**: (1) SDK skill
-docs ahead of the shipped statement-store package; (2) phone sessions silently
-expiring after ~2-3 days; (3) `init`↔`login` command churn across CLI versions;
-(4) a real `setContenthash` watcher bug in CLI v0.33.1 — **fixed by upgrading to
-v0.39.0**; (5) `login -y` producing a can't-deploy session (no Bulletin allowance).
-Recommendation to Parity: **ship ≥ v0.39.0 in the install script** and reconcile
-the `init`/`login` naming across `DEPLOYMENT.md`/`CLAUDE.md`/CLI.
+registry.
+
+**Honest caveat about the rough deploy ride:** our environment had an **outdated
+CLI (v0.33.1)** and we **deployed before upgrading** — that, not Playground,
+caused nearly every failure (most notably the `setContenthash` watcher bug that
+left a registered-but-unreachable domain). After `playground update` (→ **v0.39.0**)
+and a fresh pairing, the deploy **succeeded on the first try**. So those failures
+are **v0.33.1 history, not current bugs**.
+
+On the **current v0.39.0**, the only genuinely declarable item is the mod-side
+**SDK doc drift** (skill docs ahead of `statement-store@0.4.7`); the rest are
+low-severity first-run setup steps (approve the Bulletin allowance during
+`login`; interactive-only CLI; re-pair after an upgrade). **Main recommendation
+to Parity: ship ≥ v0.39.0 in the setup/install path so users don't start on a
+broken CLI** (and surface session/allowance state up front rather than mid-deploy).
 
